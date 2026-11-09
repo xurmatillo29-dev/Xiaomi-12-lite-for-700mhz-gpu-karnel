@@ -22,7 +22,10 @@ jobs:
           cd kernel-src
           export ARCH=arm64
           export SUBARCH=arm64
-          make O=out taoyao_defconfig
+          
+          # Fayl yo'li Xiaomi manbalariga moslab mukammallashtirildi
+          make O=out vendor/taoyao_defconfig
+          
           make -j$(nproc --all) O=out \
             CC=clang \
             LD=ld.lld \
