@@ -10,10 +10,14 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev
 
       - name: Clone Kernel Source
-        run: git clone --depth=1 -b lineage-23.2 https://github.com{{ github.repository_owner }}/kernel_xiaomi_taoyao.git kernel-src
+        env:
+          REPO: "https://github.com"
+        run: git clone --depth=1 -b lineage-23.2 $REPO kernel-src
 
       - name: Clone Toolchains (Clang)
-        run: git clone --depth=1 https://gitlab.com $HOME/clang
+        env:
+          URL: "https://gitlab.com"
+        run: git clone --depth=1 $URL $HOME/clang
 
       - name: Build Kernel
         run: |
