@@ -9,8 +9,8 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          # libpcre3-dev o'rniga libpcre2-dev va boshqa kerakli paketlar o'rnatiladi
-          sudo apt-get install -y bc bison build-essential ccache crypto-dev curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev
+          # crypto-dev olib tashlandi, qolgan barcha kerakli paketlar joyida
+          sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev
 
       - name: Clone Kernel Source
         run: |
