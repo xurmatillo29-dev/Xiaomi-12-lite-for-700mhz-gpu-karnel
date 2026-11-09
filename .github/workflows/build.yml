@@ -1,4 +1,3 @@
-.github/workflows/build.yml
 name: Xiaomi 12 Lite Kernel Compiler
 on:
   workflow_dispatch:
@@ -11,7 +10,7 @@ jobs:
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: https://github.com
-          kernel-branch: android-14
+          kernel-branch: lineage-23.2
           config: taoyao_defconfig
           arch: arm64
           android-version: 14
@@ -19,4 +18,3 @@ jobs:
           aosp-clang-version: r450784d
           ksu: true
           extra-cmd: LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip
-          
