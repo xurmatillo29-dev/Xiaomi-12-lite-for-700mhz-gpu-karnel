@@ -9,16 +9,15 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          # crypto-dev olib tashlandi, qolgan barcha kerakli paketlar joyida
           sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev
 
       - name: Clone Kernel Source
         run: |
-          git clone --depth=1 -b lineage-23.2 https://github.com kernel-src
+          git clone --depth=1 --branch="lineage-23.2" "https://github.com" kernel-src
 
       - name: Clone Toolchains (Clang)
         run: |
-          git clone --depth=1 https://gitlab.com $HOME/clang
+          git clone --depth=1 "https://gitlab.com" $HOME/clang
 
       - name: Build Kernel
         run: |
@@ -27,10 +26,8 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           
-          # Out papkasini yaratish va defconfig sozlash
           make O=out taoyao_defconfig
           
-          # Kompilyatsiyani boshlash
           make -j$(nproc --all) O=out \
             CC=clang \
             CLANG_TRIPLE=aarch64-linux-gnu- \
