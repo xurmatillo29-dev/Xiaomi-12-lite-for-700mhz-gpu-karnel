@@ -5,66 +5,36 @@ on:
 jobs:
   build-kernel:
     runs-on: ubuntu-22.04
-    timeout-minutes: 180
-
     steps:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            bc bison build-essential ccache curl flex git gnupg gperf \
-            libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk \
-            rsync liblz4-tool zip zlib1g-dev
+          sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev
 
       - name: Clone Kernel Source
         uses: actions/checkout@v4
         with:
-          repository: skglab-dev/kernel_xiaomi_taoyao
-          ref: lineage-23.2
+          repository: ${{ github.repository_owner }}/kernel_xiaomi_taoyao
           path: kernel-src
 
-      - name: Clone Prebuilt Clang Toolchain
-        run: |
-          git clone --depth=1 https://github.com/Prebuilt-Android-Clang/clang-r450784d.git clang-src
+      - name: Checkout Clang Toolchain
+        uses: actions/checkout@v4
+        with:
+          repository: Prebuilt-Android-Clang/clang-r450784d
+          path: clang-src
 
       - name: Build Kernel
-        shell: bash
         run: |
-          set -euxo pipefail
-
-          cd "$GITHUB_WORKSPACE/kernel-src"
-
-          export PATH="$GITHUB_WORKSPACE/clang-src/bin:$PATH"
+          cd kernel-src
+          export PATH=$GITHUB_WORKSPACE/clang-src/bin:$PATH
           export ARCH=arm64
           export SUBARCH=arm64
-
-          if [ ! -f "$GITHUB_WORKSPACE/clang-src/bin/clang" ]; then
-            echo "ERROR: clang binary not found at $GITHUB_WORKSPACE/clang-src/bin/clang"
-            find "$GITHUB_WORKSPACE/clang-src" -maxdepth 3 -type f | head -50
-            exit 1
-          fi
-
           make O=out taoyao_defconfig
-          make -j"$(nproc --all)" O=out \
-            CC=clang \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            CROSS_COMPILE=aarch64-linux-android- \
-            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
-            LD=ld.lld \
-            NM=llvm-nm \
-            OBJCOPY=llvm-objcopy \
-            OBJDUMP=llvm-objdump \
-            STRIP=llvm-strip
-
-      - name: Verify Output Exists
-        shell: bash
-        run: |
-          set -euxo pipefail
-          find "$GITHUB_WORKSPACE/kernel-src/out/arch/arm64/boot" -maxdepth 1 -type f \( -name 'Image*' -o -name '*.img' -o -name 'zImage*' \) | head
+          make -j$(nproc --all) O=out CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip
 
       - name: Upload Output (ZImage / Boot)
         uses: actions/upload-artifact@v4
         with:
           name: compiled-kernel-taoyao
           path: kernel-src/out/arch/arm64/boot/Image*
-          if-no-files-found: error
+
