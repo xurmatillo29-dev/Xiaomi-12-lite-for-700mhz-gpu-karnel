@@ -6,27 +6,40 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
-      - name: Setup Build Environment
-        uses: mvaisakh/amd-build-action@main
-        with:
-          options_file: .github/workflows/options.txt
-
-      - name: Compile Android 14 Kernel
+      - name: Install System Dependencies
         run: |
-          git clone --depth=1 -b lineage-23.2 https://github.com kernel
-          cd kernel
+          sudo apt-get update
+          # libpcre3-dev o'rniga libpcre2-dev va boshqa kerakli paketlar o'rnatiladi
+          sudo apt-get install -y bc bison build-essential ccache crypto-dev curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev
+
+      - name: Clone Kernel Source
+        run: |
+          git clone --depth=1 -b lineage-23.2 https://github.com kernel-src
+
+      - name: Clone Toolchains (Clang)
+        run: |
+          git clone --depth=1 https://gitlab.com $HOME/clang
+
+      - name: Build Kernel
+        run: |
+          cd kernel-src
+          export PATH=$HOME/clang/bin:$PATH
           export ARCH=arm64
           export SUBARCH=arm64
           
-          # Clang kompilyatorini yuklab olish va sozlash
-          git clone --depth=1 https://gitlab.com $HOME/clang
-          export PATH=$HOME/clang/bin:$PATH
-          
-          # Yadro yig'ish (Kompilyatsiya)
+          # Out papkasini yaratish va defconfig sozlash
           make O=out taoyao_defconfig
+          
+          # Kompilyatsiyani boshlash
           make -j$(nproc --all) O=out \
             CC=clang \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             CROSS_COMPILE=aarch64-linux-android- \
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
             LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip
+
+      - name: Upload Output (ZImage / Boot)
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-kernel-taoyao
+          path: kernel-src/out/arch/arm64/boot/Image*
