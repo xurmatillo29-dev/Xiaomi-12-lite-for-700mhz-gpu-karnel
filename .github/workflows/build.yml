@@ -20,10 +20,9 @@ jobs:
       - name: Download Google Official Clang
         run: |
           mkdir clang-src
-          cd clang-src
-          curl -LO https://googlesource.com
-          tar -xf clang-r450784d.tar.gz
-          rm -f clang-r450784d.tar.gz
+          curl -s https://googlesource.com -o clang.tar.gz
+          tar -xf clang.tar.gz -C clang-src
+          rm -f clang.tar.gz
 
       - name: Build Kernel
         run: |
