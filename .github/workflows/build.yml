@@ -4,17 +4,29 @@ on:
 
 jobs:
   build-kernel:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
-      - name: Compile Android 14 Kernel
-        uses: dabao1955/kernel_build_action@main
+      - name: Setup Build Environment
+        uses: mvaisakh/amd-build-action@main
         with:
-          kernel-url: https://github.com
-          kernel-branch: lineage-23.2
-          config: taoyao_defconfig
-          arch: arm64
-          android-version: 14
-          aosp-clang: true
-          aosp-clang-version: r450784d
-          ksu: true
-          extra-cmd: LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip
+          options_file: .github/workflows/options.txt
+
+      - name: Compile Android 14 Kernel
+        run: |
+          git clone --depth=1 -b lineage-23.2 https://github.com kernel
+          cd kernel
+          export ARCH=arm64
+          export SUBARCH=arm64
+          
+          # Clang kompilyatorini yuklab olish va sozlash
+          git clone --depth=1 https://gitlab.com $HOME/clang
+          export PATH=$HOME/clang/bin:$PATH
+          
+          # Yadro yig'ish (Kompilyatsiya)
+          make O=out taoyao_defconfig
+          make -j$(nproc --all) O=out \
+            CC=clang \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip
