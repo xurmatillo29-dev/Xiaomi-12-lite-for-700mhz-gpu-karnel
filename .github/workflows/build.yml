@@ -14,33 +14,22 @@ jobs:
       - name: Clone Kernel Source
         uses: actions/checkout@v4
         with:
-          repository: skglab-dev/kernel_xiaomi_taoyao
+          repository: ${{ github.repository_owner }}/kernel_xiaomi_taoyao
           ref: lineage-23.2
           path: kernel-src
 
       - name: Clone Toolchains (Clang)
-        uses: actions/checkout@v4
-        with:
-          repository: Prebuilt-Android-Clang/clang-r450784d
-          path: clang-src
+        run: |
+          cd kernel-src
+          bash scripts/function.sh && echo "Clang muvaffaqiyatli yuklandi"
 
       - name: Build Kernel
         run: |
           cd kernel-src
-          export PATH=$GITHUB_WORKSPACE/clang-src/bin:$PATH
           export ARCH=arm64
           export SUBARCH=arm64
           make O=out taoyao_defconfig
-          make -j$(nproc --all) O=out \
-            CC=clang \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            CROSS_COMPILE=aarch64-linux-android- \
-            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
-            LD=ld.lld \
-            NM=llvm-nm \
-            OBJCOPY=llvm-objcopy \
-            OBJDUMP=llvm-objdump \
-            STRIP=llvm-strip
+          make -j$(nproc --all) O=out CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip
 
       - name: Upload Output (ZImage / Boot)
         uses: actions/upload-artifact@v4
