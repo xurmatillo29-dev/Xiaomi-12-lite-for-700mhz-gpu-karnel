@@ -17,11 +17,13 @@ jobs:
           repository: ${{ github.repository_owner }}/kernel_xiaomi_taoyao
           path: kernel-src
 
-      - name: Checkout Clang Toolchain
-        uses: actions/checkout@v4
-        with:
-          repository: Prebuilt-Android-Clang/clang-r450784d
-          path: clang-src
+      - name: Download Google Official Clang
+        run: |
+          mkdir clang-src
+          cd clang-src
+          curl -LO https://googlesource.com
+          tar -xf clang-r450784d.tar.gz
+          rm -f clang-r450784d.tar.gz
 
       - name: Build Kernel
         run: |
@@ -37,4 +39,3 @@ jobs:
         with:
           name: compiled-kernel-taoyao
           path: kernel-src/out/arch/arm64/boot/Image*
-
