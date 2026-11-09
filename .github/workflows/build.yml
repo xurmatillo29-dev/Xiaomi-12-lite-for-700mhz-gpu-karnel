@@ -23,8 +23,16 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           
-          # Fayl yo'li Xiaomi manbalariga moslab mukammallashtirildi
-          make O=out vendor/taoyao_defconfig
+          # Tizim konfiguratsiya fayllarini qayerdan qidirishini aniq ko'rsatish
+          export KCONFIG_CONFIG=arch/arm64/configs/taoyao_defconfig
+          
+          # O'zingiz aytgan original buyruq to'liq qaytarildi
+          make O=out taoyao_defconfig
+          
+          # Agar yadro GKI (Android 14) arxitekturasida bo'lsa, qo'shimcha birlashtirish
+          if [ -f arch/arm64/configs/gki_defconfig ]; then
+            make O=out gki_defconfig
+          fi
           
           make -j$(nproc --all) O=out \
             CC=clang \
