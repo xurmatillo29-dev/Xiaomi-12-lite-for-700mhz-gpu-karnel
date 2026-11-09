@@ -6,10 +6,10 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
-      - name: Install System Dependencies
+      - name: Install System Dependencies and Clang
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev
+          sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev clang lld llvm
 
       - name: Clone Kernel Source
         uses: actions/checkout@v4
@@ -17,21 +17,19 @@ jobs:
           repository: ${{ github.repository_owner }}/kernel_xiaomi_taoyao
           path: kernel-src
 
-      - name: Download Google Official Clang
-        run: |
-          mkdir clang-src
-          curl -s https://googlesource.com -o clang.tar.gz
-          tar -xf clang.tar.gz -C clang-src
-          rm -f clang.tar.gz
-
       - name: Build Kernel
         run: |
           cd kernel-src
-          export PATH=$GITHUB_WORKSPACE/clang-src/bin:$PATH
           export ARCH=arm64
           export SUBARCH=arm64
           make O=out taoyao_defconfig
-          make -j$(nproc --all) O=out CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip
+          make -j$(nproc --all) O=out \
+            CC=clang \
+            LD=ld.lld \
+            NM=llvm-nm \
+            OBJCOPY=llvm-objcopy \
+            OBJDUMP=llvm-objdump \
+            STRIP=llvm-strip
 
       - name: Upload Output (ZImage / Boot)
         uses: actions/upload-artifact@v4
