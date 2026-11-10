@@ -7,9 +7,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Install System Dependencies and Clang
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev clang lld llvm
+        run: sudo apt-get update && sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev clang lld llvm
 
       - name: Clone Kernel Source
         uses: actions/checkout@v4
@@ -24,55 +22,11 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           make O=out taoyao_defconfig
-          make -j$(nproc --all) O=out \
-            CC=clang \
-            LD=ld.lld \
-            NM=llvm-nm \
-            OBJCOPY=llvm-objcopy \
-            OBJDUMP=llvm-objdump \
-            STRIP=llvm-strip
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip
 
-      - name: Package with AnyKernel3 Automatically
-        run: |
-          # Rasmiy va toza AnyKernel3 shablonini yuklash
-          git clone --depth=1 https://github.com AnyKernel3
-          
-          # Xiaomi 12 Lite uchun anykernel.sh konfiguratsiyasini avtomatik yozish
-          cat << 'EOF' > AnyKernel3/anykernel.sh
-          # AnyKernel3 Config Properties
-          properties() { '
-          kernel.string=Custom Overclocked Kernel for Xiaomi 12 Lite by xurmatillo29-dev
-          do.devicecheck=1
-          do.modules=0
-          do.systemless=1
-          do.cleanup=1
-          do.cleanuponabort=1
-          device.name1=taoyao
-          supported.versions=14
-          '; }
-          
-          block=/dev/block/by-name/vendor_boot;
-          is_slot_device=1;
-          ramdisk_compression=auto;
-          patch_vbmeta_flag=auto;
-          
-          split_boot;
-          flash_boot;
-          EOF
-          
-          # Yig'ilgan yadro va barcha DTB fayllarini AnyKernel3 ichiga to'g'ri ko'chirish
-          cp kernel-src/out/arch/arm64/boot/Image AnyKernel3/
-          if [ -d "kernel-src/out/arch/arm64/boot/dts" ]; then
-            cp kernel-src/out/arch/arm64/boot/dtb AnyKernel3/ 2>/dev/null || true
-            cp kernel-src/out/arch/arm64/boot/dtbo.img AnyKernel3/ 2>/dev/null || true
-          fi
-          
-          # Tayyor xavfsiz zip arxivini yaratish
-          cd AnyKernel3
-          zip -r9 ../Taoyao-710Mhz-Kernel.zip *
-
-      - name: Upload Flashable Kernel Zip
+      - name: Upload Output Image Directly
         uses: actions/upload-artifact@v4
         with:
-          name: Flashable-Taoyao-Kernel
-          path: Taoyao-710Mhz-Kernel.zip
+          name: compiled-kernel-taoyao
+          path: kernel-src/out/arch/arm64/boot/Image
+
