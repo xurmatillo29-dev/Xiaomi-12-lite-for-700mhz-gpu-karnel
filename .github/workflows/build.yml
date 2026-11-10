@@ -1,4 +1,4 @@
-name: Xiaomi 12 Lite Kernel Compiler (Official DTBO Fix)
+name: Xiaomi 12 Lite Kernel Compiler (Official Fix)
 on:
   workflow_dispatch:
 
@@ -24,17 +24,11 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           
-          # 1. Konfiguratsiyani yaratish
+          # Konfiguratsiyani yaratish
           make O=out taoyao_defconfig
           
-          # 2. Asosiy yadro tasvirini yig'ish
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
-          
-          # 3. Plata drayverlarini (DTB) kompilyatsiya qilish
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld dtbs
-          
-          # 4. GPU 710MHz jadvallarini o'z ichiga olgan haqiqiy dtbo.img tasvirini majburiy yig'ish
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld dtboimage
+          # Yadro va unga tegishli barcha drayverlarni (dtbs) to'liq yig'ish
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image dtbs
 
       - name: Upload Output Kernel Files
         uses: actions/upload-artifact@v4
@@ -42,5 +36,5 @@ jobs:
           name: compiled-kernel-taoyao-fixed
           path: |
             kernel-src/out/arch/arm64/boot/Image
-            kernel-src/out/arch/arm64/boot/dtbo.img
+            kernel-src/out/arch/arm64/boot/dts/vendor/qcom/taoyao-sm7325-overlay.dtbo
 
