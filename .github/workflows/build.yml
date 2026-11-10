@@ -16,44 +16,28 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/kernel_xiaomi_taoyao
           path: kernel-src
+          fetch-depth: 0 # Barcha tarmoqlarni (branch) tekshirish uchun to'liq yuklash
 
       - name: Build Kernel
         run: |
           cd kernel-src
-          export ARCH=arm64
-          export SUBARCH=arm64
           
-          # Aqlli qidiruv: taoyao so'zi bor defconfig faylini aniq manzilini topish
-          TARGET_CONFIG=$(find arch/arm64/configs/ -name "*taoyao*" | head -n 1)
+          echo "============================================="
+          echo "📂 REPOZITORIYa ICHIDAGI ASOSIYa PAPKALAR:"
+          ls -la
+          echo "============================================="
+          echo "🌿 MAVJUD TARMOQLAR (BRANCHES) RO'YXATI:"
+          git branch -a
+          echo "============================================="
           
-          if [ -z "$TARGET_CONFIG" ]; then
-             echo "⚠️ DIQQAT: taoyao nomli fayl topilmadi! Bor fayllar ro'yxati:"
-             find arch/arm64/configs/ -name "*defconfig*"
-             exit 1
+          # Agarda arch papkasi topilsa, configs ichini qidirish
+          if [ -d "arch/arm64/configs" ]; then
+            echo "✅ Configs papkasi topildi! Fayllar:"
+            find arch/arm64/configs/ -name "*defconfig*"
+          else
+            echo "❌ arch/arm64/configs papkasi umuman yo'q!"
+            echo "Qidirilmoqda: istalgan defconfig fayli..."
+            find . -name "*defconfig*"
           fi
-          
-          # Topilgan fayl nomini (masalan: vendor/taoyao_defconfig) make buyrug'iga berish
-          CONFIG_NAME=$(basename $TARGET_CONFIG)
-          if [[ "$TARGET_CONFIG" == *"vendor/"* ]]; then
-             CONFIG_NAME="vendor/$CONFIG_NAME"
-          fi
-          
-          echo "✅ To'g'ri konfiguratsiya fayli topildi: $CONFIG_NAME"
-          
-          # Konfiguratsiyani sozlash
-          make O=out $CONFIG_NAME
-          
-          # Kompilyatsiyani boshlash
-          make -j$(nproc --all) O=out \
-            CC=clang \
-            LD=ld.lld \
-            NM=llvm-nm \
-            OBJCOPY=llvm-objcopy \
-            OBJDUMP=llvm-objdump \
-            STRIP=llvm-strip
+          exit 1 # Loglarni ko'rishimiz uchun jarayonni ataylab shu yerda to'xtatamiz
 
-      - name: Upload Output (ZImage / Boot)
-        uses: actions/upload-artifact@v4
-        with:
-          name: compiled-kernel-taoyao
-          path: kernel-src/out/arch/arm64/boot/Image*
