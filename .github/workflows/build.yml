@@ -23,17 +23,27 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           
-          # Tizim konfiguratsiya fayllarini qayerdan qidirishini aniq ko'rsatish
-          export KCONFIG_CONFIG=arch/arm64/configs/taoyao_defconfig
+          # Aqlli qidiruv: taoyao so'zi bor defconfig faylini aniq manzilini topish
+          TARGET_CONFIG=$(find arch/arm64/configs/ -name "*taoyao*" | head -n 1)
           
-          # O'zingiz aytgan original buyruq to'liq qaytarildi
-          make O=out taoyao_defconfig
-          
-          # Agar yadro GKI (Android 14) arxitekturasida bo'lsa, qo'shimcha birlashtirish
-          if [ -f arch/arm64/configs/gki_defconfig ]; then
-            make O=out gki_defconfig
+          if [ -z "$TARGET_CONFIG" ]; then
+             echo "⚠️ DIQQAT: taoyao nomli fayl topilmadi! Bor fayllar ro'yxati:"
+             find arch/arm64/configs/ -name "*defconfig*"
+             exit 1
           fi
           
+          # Topilgan fayl nomini (masalan: vendor/taoyao_defconfig) make buyrug'iga berish
+          CONFIG_NAME=$(basename $TARGET_CONFIG)
+          if [[ "$TARGET_CONFIG" == *"vendor/"* ]]; then
+             CONFIG_NAME="vendor/$CONFIG_NAME"
+          fi
+          
+          echo "✅ To'g'ri konfiguratsiya fayli topildi: $CONFIG_NAME"
+          
+          # Konfiguratsiyani sozlash
+          make O=out $CONFIG_NAME
+          
+          # Kompilyatsiyani boshlash
           make -j$(nproc --all) O=out \
             CC=clang \
             LD=ld.lld \
