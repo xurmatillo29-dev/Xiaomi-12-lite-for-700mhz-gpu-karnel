@@ -1,4 +1,4 @@
-name: Xiaomi 12 Lite Kernel Compiler (Official Fix)
+name: Xiaomi 12 Lite EvolutionX Kernel Compiler
 on:
   workflow_dispatch:
 
@@ -14,8 +14,8 @@ jobs:
       - name: Clone Kernel Source
         uses: actions/checkout@v4
         with:
-          repository: skglab-dev/kernel_xiaomi_taoyao
-          ref: lineage-23.2
+          repository: Paimon-Lab/kernel_xiaomi_taoyao
+          ref: fourteen
           path: kernel-src
 
       - name: Build Kernel Image and DTBO
@@ -27,13 +27,13 @@ jobs:
           # Konfiguratsiyani yaratish
           make O=out taoyao_defconfig
           
-          # Yadro va unga tegishli barcha drayverlarni (dtbs) to'liq yig'ish
+          # Yadro va proshivkaga mos drayverlarni (dtbs) to'liq yig'ish
           make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image dtbs
 
       - name: Upload Output Kernel Files
         uses: actions/upload-artifact@v4
         with:
-          name: compiled-kernel-taoyao-fixed
+          name: compiled-evolutionx-kernel
           path: |
             kernel-src/out/arch/arm64/boot/Image
             kernel-src/out/arch/arm64/boot/dts/vendor/qcom/taoyao-sm7325-overlay.dtbo
