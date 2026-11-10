@@ -14,30 +14,30 @@ jobs:
       - name: Clone Kernel Source
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository_owner }}/kernel_xiaomi_taoyao
+          # Bo'sh profilingizdan emas, original to'laqonli manbadan yuklaymiz
+          repository: skglab-dev/kernel_xiaomi_taoyao
+          ref: lineage-23.2
           path: kernel-src
-          fetch-depth: 0 # Barcha tarmoqlarni (branch) tekshirish uchun to'liq yuklash
 
       - name: Build Kernel
         run: |
           cd kernel-src
+          export ARCH=arm64
+          export SUBARCH=arm64
           
-          echo "============================================="
-          echo "📂 REPOZITORIYa ICHIDAGI ASOSIYa PAPKALAR:"
-          ls -la
-          echo "============================================="
-          echo "🌿 MAVJUD TARMOQLAR (BRANCHES) RO'YXATI:"
-          git branch -a
-          echo "============================================="
+          # Endi fayl joyida bo'lgani uchun original buyruq aniq ishlaydi
+          make O=out taoyao_defconfig
           
-          # Agarda arch papkasi topilsa, configs ichini qidirish
-          if [ -d "arch/arm64/configs" ]; then
-            echo "✅ Configs papkasi topildi! Fayllar:"
-            find arch/arm64/configs/ -name "*defconfig*"
-          else
-            echo "❌ arch/arm64/configs papkasi umuman yo'q!"
-            echo "Qidirilmoqda: istalgan defconfig fayli..."
-            find . -name "*defconfig*"
-          fi
-          exit 1 # Loglarni ko'rishimiz uchun jarayonni ataylab shu yerda to'xtatamiz
+          make -j$(nproc --all) O=out \
+            CC=clang \
+            LD=ld.lld \
+            NM=llvm-nm \
+            OBJCOPY=llvm-objcopy \
+            OBJDUMP=llvm-objdump \
+            STRIP=llvm-strip
 
+      - name: Upload Output (ZImage / Boot)
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-kernel-taoyao
+          path: kernel-src/out/arch/arm64/boot/Image*
