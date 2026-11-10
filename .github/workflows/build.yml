@@ -1,4 +1,4 @@
-name: Xiaomi 12 Lite Kernel Compiler
+name: Xiaomi 12 Lite Kernel Compiler (Full DTBO Fix)
 on:
   workflow_dispatch:
 
@@ -6,10 +6,10 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
-      - name: Install System Dependencies and Clang
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev clang lld llvm
+          sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip zlib1g-dev clang lld llvm device-tree-compiler
 
       - name: Clone Kernel Source
         uses: actions/checkout@v4
@@ -18,18 +18,30 @@ jobs:
           ref: lineage-23.2
           path: kernel-src
 
-      - name: Build Kernel
+      - name: Build Kernel and DTBO
         run: |
           cd kernel-src
           export ARCH=arm64
           export SUBARCH=arm64
+          
+          # Konfiguratsiyani yaratish
           make O=out taoyao_defconfig
+          
+          # Kompilyatsiya qilish (Yadro va barcha modullar/DTBO jadvallari)
           make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip
+          
+          # DTBO rasmini yakuniy formatda qo'lda yig'ish (chala qolishining oldini olish uchun)
+          if [ -f out/arch/arm64/boot/dtbo.img ]; then
+            echo "DTBO muvaffaqiyatli yig'ildi."
+          else
+            echo "DTBO avtomatik yig'ilmadi, qo'lda yig'ishga urinilmoqda..."
+            make -j$(nproc --all) O=out CC=clang LD=ld.lld dtboimage
+          fi
 
       - name: Upload Output Kernel Files
-        uses: actions/upload-artifact@v4
+        uses: actions/with-artifact@v4
         with:
-          name: compiled-kernel-taoyao
+          name: compiled-kernel-taoyao-fixed
           path: |
             kernel-src/out/arch/arm64/boot/Image
             kernel-src/out/arch/arm64/boot/dtbo.img
