@@ -1,4 +1,4 @@
-name: Xiaomi 12 Lite Kernel Compiler (Full DTBO Fix)
+name: Xiaomi 12 Lite Kernel Compiler (Official DTBO Fix)
 on:
   workflow_dispatch:
 
@@ -18,25 +18,23 @@ jobs:
           ref: lineage-23.2
           path: kernel-src
 
-      - name: Build Kernel and DTBO
+      - name: Build Kernel Image and DTBO
         run: |
           cd kernel-src
           export ARCH=arm64
           export SUBARCH=arm64
           
-          # Konfiguratsiyani yaratish
+          # 1. Konfiguratsiyani yaratish
           make O=out taoyao_defconfig
           
-          # Kompilyatsiya qilish (Yadro va barcha modullar/DTBO jadvallari)
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip
+          # 2. Asosiy yadro tasvirini yig'ish
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
           
-          # DTBO rasmini yakuniy formatda qo'lda yig'ish (chala qolishining oldini olish uchun)
-          if [ -f out/arch/arm64/boot/dtbo.img ]; then
-            echo "DTBO muvaffaqiyatli yig'ildi."
-          else
-            echo "DTBO avtomatik yig'ilmadi, qo'lda yig'ishga urinilmoqda..."
-            make -j$(nproc --all) O=out CC=clang LD=ld.lld dtboimage
-          fi
+          # 3. Plata drayverlarini (DTB) kompilyatsiya qilish
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld dtbs
+          
+          # 4. GPU 710MHz jadvallarini o'z ichiga olgan haqiqiy dtbo.img tasvirini majburiy yig'ish
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld dtboimage
 
       - name: Upload Output Kernel Files
         uses: actions/upload-artifact@v4
@@ -45,4 +43,4 @@ jobs:
           path: |
             kernel-src/out/arch/arm64/boot/Image
             kernel-src/out/arch/arm64/boot/dtbo.img
-            kernel-src/out/arch/arm64/boot/dts/vendor/qcom/taoyao.dtb
+
