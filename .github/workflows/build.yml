@@ -7,8 +7,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Clone Official LineageOS AOSP Clang
-        run: |
-          git clone --depth=1 https://github.com clang
+        uses: actions/checkout@v4
+        with:
+          repository: LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b
+          path: clang
 
       - name: Clone Kernel Source
         uses: actions/checkout@v4
