@@ -21,10 +21,6 @@ jobs:
           ref: lineage-23.2
           path: kernel-src
 
-      - name: Clone mkdtboimg Tool
-        run: |
-          git clone https://googlesource.com libufdt
-
       - name: Patch GPU 710MHz & Audio Compatibility
         run: |
           cd kernel-src
@@ -49,12 +45,15 @@ jobs:
           make O=out taoyao_defconfig
           make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image dtbs
           
+          # Yadro ichidagi tayyor mkdtboimg.py skriptini topish
+          MKDTBO_SCRIPT=$(find . -name "mkdtboimg.py" | head -n 1)
+          
           cd ..
           unzip orig_dtbo.zip
           mkdir unpacked_dtbo
-          python3 libufdt/utils/src/mkdtboimg.py unpack dtbo.img -o unpacked_dtbo/dtbo
+          python3 kernel-src/$MKDTBO_SCRIPT unpack dtbo.img -o unpacked_dtbo/dtbo
           cp kernel-src/out/arch/arm64/boot/dts/vendor/qcom/taoyao-sm7325-overlay.dtbo unpacked_dtbo/dtbo.0
-          python3 libufdt/utils/src/mkdtboimg.py create final_dtbo.img unpacked_dtbo/dtbo.*
+          python3 kernel-src/$MKDTBO_SCRIPT create final_dtbo.img unpacked_dtbo/dtbo.*
 
       - name: Upload Final Overclocked & Audio Fixed Files
         uses: actions/upload-artifact@v4
