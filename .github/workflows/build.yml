@@ -11,8 +11,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip unzip zlib1g-dev clang lld llvm device-tree-compiler python3
 
-      - name: Checkout User Repo (for orig_dtbo.zip)
-        uses: actions/checkout@v4
+      - name: Download orig_dtbo.zip
+        run: |
+          curl -f -L -o orig_dtbo.zip "https://github.com"
+          unzip -o orig_dtbo.zip -d orig_dtbo_extracted
+          ls -la orig_dtbo_extracted
 
       - name: Clone Kernel Source
         uses: actions/checkout@v4
@@ -24,7 +27,19 @@ jobs:
       - name: Patch GPU 710MHz & Audio Compatibility
         run: |
           cd kernel-src
-          grep -rl "550000000" arch/arm64/boot/dts/vendor/qcom/ | xargs sed -i 's/550000000/710000000/g'
+          python3 -c '
+          import glob
+          for path in glob.glob("arch/arm64/boot/dts/vendor/qcom/*.dts*"):
+              with open(path, "r") as f:
+                  content = f.read()
+              if "550000000" in content:
+                  content = content.replace("550000000", "710000000")
+                  content = content.replace("qcom,level = <320>;", "qcom,level = <384>;")
+                  content = content.replace("opp-level = <320>;", "opp-level = <384>;")
+                  with open(path, "w") as f:
+                      f.write(content)
+                  print("Patched:", path)
+          '
           
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
@@ -46,12 +61,18 @@ jobs:
           make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image dtbs
           
           cd ..
-          unzip orig_dtbo.zip
+          ORIG_DTBO_PATH=$(find orig_dtbo_extracted -name "dtbo.img" | head -n 1)
+          if [ -z "$ORIG_DTBO_PATH" ]; then
+            echo "XATO: orig_dtbo.zip ichidan dtbo.img topilmadi!"
+            exit 1
+          fi
           
           MKDTBO_SCRIPT=$(find kernel-src -name "mkdtboimg.py" | head -n 1)
           mkdir unpacked_dtbo
-          python3 "$MKDTBO_SCRIPT" dump dtbo.img -b unpacked_dtbo/dtbo
-          cp kernel-src/out/arch/arm64/boot/dts/vendor/qcom/taoyao-sm7325-overlay.dtbo unpacked_dtbo/dtbo.0
+          python3 "$MKDTBO_SCRIPT" dump "$ORIG_DTBO_PATH" -b unpacked_dtbo/dtbo
+          
+          NEW_DTBO=$(find kernel-src/out/arch/arm64/boot/dts/ -name "*taoyao*overlay.dtbo" | head -n 1)
+          cp "$NEW_DTBO" unpacked_dtbo/dtbo.0
           python3 "$MKDTBO_SCRIPT" create final_dtbo.img unpacked_dtbo/dtbo.*
 
       - name: Upload Final Overclocked & Audio Fixed Files
