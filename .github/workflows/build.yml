@@ -6,13 +6,13 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
-      - name: Clone Official LineageOS AOSP Clang
+      - name: Clone Official LineageOS AOSP Clang (New)
         uses: actions/checkout@v4
         with:
-          repository: LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b
+          repository: LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r487747c
           path: clang
 
-      - name: Clone Official LineageOS AArch64 Binutils (GAS)
+      - name: Clone Official LineageOS AArch64 Binutils
         uses: actions/checkout@v4
         with:
           repository: LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9
