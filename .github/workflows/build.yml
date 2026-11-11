@@ -11,6 +11,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip unzip zlib1g-dev clang lld llvm device-tree-compiler python3
 
+      - name: Checkout User Repo (for orig_dtbo.zip)
+        uses: actions/checkout@v4
+
       - name: Clone Kernel Source
         uses: actions/checkout@v4
         with:
@@ -21,10 +24,8 @@ jobs:
       - name: Patch GPU 710MHz & Audio Compatibility
         run: |
           cd kernel-src
-          # 1. GPU chastotasini 710MHz ga oshirish
           grep -rl "550000000" arch/arm64/boot/dts/vendor/qcom/ | xargs sed -i 's/550000000/710000000/g'
           
-          # 2. Ovoz modullari va audio chiplarini faollashtirish
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
             --disable CONFIG_MODVERSIONS \
@@ -44,12 +45,9 @@ jobs:
           make O=out taoyao_defconfig
           make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image dtbs
           
-          # Releases bo'limidan orig_dtbo.zip ni avtomatik yuklab olish va ochish
           cd ..
-          curl -L -o orig_dtbo.zip "https://github.com"
           unzip orig_dtbo.zip
           
-          # 'unpack' o'rniga 'dump -b' buyrug'i bilan bo'laklash va birlashtirish
           MKDTBO_SCRIPT=$(find kernel-src -name "mkdtboimg.py" | head -n 1)
           mkdir unpacked_dtbo
           python3 "$MKDTBO_SCRIPT" dump dtbo.img -b unpacked_dtbo/dtbo
