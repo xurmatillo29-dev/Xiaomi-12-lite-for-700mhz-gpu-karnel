@@ -68,7 +68,7 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           make O=out taoyao_defconfig
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip LLVM=1 LLVM_IAS=1 Image
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
 
       - name: Upload Final Kernel Image
         uses: actions/upload-artifact@v4
