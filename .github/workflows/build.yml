@@ -6,10 +6,12 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
-      - name: Download Prebuilt Clang & LLD (No apt-get)
+      - name: Download Latest Clang & LLD (Auto URL)
         run: |
           mkdir -p clang
-          curl -L -s "https://github.com" -o clang.tar.gz
+          CLANG_URL=$(curl -s https://github.com | grep "browser_download_url.*tar.gz" | cut -d '"' -f 4 | head -n 1)
+          echo "Yuklanmoqda: $CLANG_URL"
+          curl -f -L "$CLANG_URL" -o clang.tar.gz
           tar -xzf clang.tar.gz -C clang
           rm clang.tar.gz
 
@@ -23,7 +25,6 @@ jobs:
       - name: Unlock Speed-Bin 0 (700MHz & 812MHz) & Audio Fix
         run: |
           cd kernel-src
-          # 1. GPU Speed Bin eFuse blokini ochish (Bin 117 -> Speed Bin 0: 700MHz & 812MHz)
           python3 -c '
           import glob, re
           unlocked = 0
@@ -52,7 +53,6 @@ jobs:
               print("ESLATMA: speed_bin funksiyasi topilmadi!")
           '
 
-          # 2. Ovoz (Audio) va modul mosligini to'liq tiklash
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
             --disable CONFIG_MODVERSIONS \
