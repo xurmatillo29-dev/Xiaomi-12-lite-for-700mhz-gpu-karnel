@@ -6,17 +6,10 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
-      - name: Clone Official LineageOS AOSP Clang
-        uses: actions/checkout@v4
-        with:
-          repository: LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b
-          path: clang
-
-      - name: Clone Official LineageOS AArch64 Binutils
-        uses: actions/checkout@v4
-        with:
-          repository: LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9
-          path: gcc64
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip unzip zlib1g-dev clang lld llvm device-tree-compiler python3
 
       - name: Clone Kernel Source
         uses: actions/checkout@v4
@@ -28,6 +21,7 @@ jobs:
       - name: Unlock Speed-Bin 0 (700MHz & 812MHz) & Audio Fix
         run: |
           cd kernel-src
+          # 1. GPU Speed Bin eFuse blokini ochish (Bin 117 -> Speed Bin 0: 700MHz & 812MHz)
           python3 -c '
           import glob, re
           unlocked = 0
@@ -56,6 +50,7 @@ jobs:
               print("ESLATMA: speed_bin funksiyasi topilmadi!")
           '
 
+          # 2. Ovoz (Audio) va modul mosligini to'liq tiklash
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
             --disable CONFIG_MODVERSIONS \
@@ -69,21 +64,11 @@ jobs:
 
       - name: Build Final Kernel Image
         run: |
-          export PATH="$GITHUB_WORKSPACE/clang/bin:$GITHUB_WORKSPACE/gcc64/bin:$PATH"
           cd kernel-src
           export ARCH=arm64
           export SUBARCH=arm64
           make O=out taoyao_defconfig
-          make -j$(nproc --all) O=out \
-            CC=clang \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            CROSS_COMPILE=aarch64-linux-android- \
-            LD=ld.lld \
-            NM=llvm-nm \
-            OBJCOPY=llvm-objcopy \
-            OBJDUMP=llvm-objdump \
-            STRIP=llvm-strip \
-            Image
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
 
       - name: Upload Final Kernel Image
         uses: actions/upload-artifact@v4
