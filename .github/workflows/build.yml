@@ -1,58 +1,50 @@
-name: Xiaomi 12 Lite GPU 710MHz + Audio Fix Builder
+name: Xiaomi 12 Lite Android 14 GPU 700-812MHz Builder
 on:
   workflow_dispatch:
 
 jobs:
   build-kernel:
     runs-on: ubuntu-22.04
-    permissions:
-      contents: read
     steps:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip unzip zlib1g-dev clang lld llvm device-tree-compiler python3
 
-      - name: Download orig_dtbo.zip from Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release download V1.0 -R xurmatillo29-dev/Xiaomi-12-lite-for-700mhz-gpu-karnel -p "orig_dtbo.zip"
-          unzip -o orig_dtbo.zip -d orig_dtbo_extracted
-
-      - name: Clone Kernel Source
+      - name: Clone Android 14 Kernel Source
         uses: actions/checkout@v4
         with:
           repository: skglab-dev/kernel_xiaomi_taoyao
-          ref: lineage-23.2
+          ref: lineage-21.0
           path: kernel-src
 
-      - name: Patch GPU 710MHz (384 Voltage) & Audio Compatibility
+      - name: Unlock Speed-Bin 0 (700MHz & 812MHz) & Audio Fix
         run: |
           cd kernel-src
+          # GPU Speed Bin eFuse tekshiruvini 0 ga o'tkazish (700MHz va 812MHz zavod jadvalini ochadi)
           python3 -c '
           import glob, re
-          files = glob.glob("arch/arm64/boot/dts/**/*.dts*", recursive=True)
-          patched_count = 0
-          for path in files:
+          for path in glob.glob("drivers/gpu/msm/*.c"):
               with open(path, "r") as f:
                   content = f.read()
-              if "550000000" in content:
+              if "speed_bin" in content and "nvmem" in content:
                   new_content = re.sub(
-                      r"(qcom,gpu-freq\s*=\s*<)550000000(>;[^}]*?qcom,level\s*=\s*<)\d+(>;)",
-                      r"\g<1>710000000\g<2>384\g<3>",
-                      content,
-                      flags=re.DOTALL
+                      r"(of_property_read_u32\([^;]+?\"qcom,speed-bin\"[^;]+?;)",
+                      r"\1\n\t*speed_bin = 0;",
+                      content
                   )
-                  new_content = new_content.replace("550000000", "710000000")
-                  with open(path, "w") as f:
-                      f.write(new_content)
-                  print("MUVAFFAQIYATLI PATCH QILINDI:", path)
-                  patched_count += 1
-          if patched_count == 0:
-              print("OGOHLANTIRISH: 550000000 topilmadi!")
+                  new_content = re.sub(
+                      r"(adreno_read_speed_bin\([^)]+\)\s*\{)",
+                      r"\1\n\treturn 0;",
+                      new_content
+                  )
+                  if new_content != content:
+                      with open(path, "w") as f:
+                          f.write(new_content)
+                      print("SPEED BIN UNLOCKED IN:", path)
           '
-          
+
+          # Audio va modul mosligi
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
             --disable CONFIG_MODVERSIONS \
@@ -64,39 +56,16 @@ jobs:
             --enable CONFIG_PINCTRL_LPI \
             --enable CONFIG_SND_SOC_LPASS_CDC
 
-      - name: Build Kernel, DTB and Merge DTBO
+      - name: Build Android 14 Kernel Image
         run: |
           cd kernel-src
           export ARCH=arm64
           export SUBARCH=arm64
           make O=out taoyao_defconfig
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image dtbs
-          
-          # Barcha compiled dtb fayllarni bitta dtb fayliga birlashtirish (vendor_boot uchun)
-          find out/arch/arm64/boot/dts/ -name "*.dtb" -exec cat {} + > ../dtb
-          
-          cd ..
-          ORIG_DTBO_PATH=$(find orig_dtbo_extracted -name "dtbo.img" | head -n 1)
-          MKDTBO_SCRIPT=$(find kernel-src -name "mkdtboimg.py" | head -n 1)
-          sed -i 's|/ 4|// 4|g' "$MKDTBO_SCRIPT"
-          
-          mkdir unpacked_dtbo
-          python3 "$MKDTBO_SCRIPT" dump "$ORIG_DTBO_PATH" -b unpacked_dtbo/dtbo
-          
-          NEW_DTBO=$(find kernel-src/out/arch/arm64/boot/dts/ -name "*taoyao*overlay.dtbo" | head -n 1)
-          for f in unpacked_dtbo/dtbo.*; do
-            if strings "$f" | grep -qi "taoyao"; then
-              cp "$NEW_DTBO" "$f"
-            fi
-          done
-          
-          python3 "$MKDTBO_SCRIPT" create final_dtbo.img unpacked_dtbo/dtbo.*
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
 
-      - name: Upload Final Overclocked & Audio Fixed Files
+      - name: Upload Final Kernel Image
         uses: actions/upload-artifact@v4
         with:
-          name: taoyao-gpu710-audiofix
-          path: |
-            kernel-src/out/arch/arm64/boot/Image
-            dtb
-            final_dtbo.img
+          name: taoyao-a14-gpu-unlocked
+          path: kernel-src/out/arch/arm64/boot/Image
