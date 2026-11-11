@@ -1,4 +1,4 @@
-name: Xiaomi 12 Lite Android 14 GPU 700-812MHz Builder
+name: Xiaomi 12 Lite GPU 700-812MHz + Audio Fix Builder
 on:
   workflow_dispatch:
 
@@ -11,40 +11,48 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip unzip zlib1g-dev clang lld llvm device-tree-compiler python3
 
-      - name: Clone Android 14 Kernel Source
-        uses: actions/checkout@v4
-        with:
-          repository: skglab-dev/kernel_xiaomi_taoyao
-          ref: lineage-21.0
-          path: kernel-src
+      - name: Clone Android 14 Kernel Source (Smart Fallback)
+        run: |
+          if git clone --depth=1 -b udc https://github.com kernel-src; then
+            echo "MUVAFFAQIYATLI: Evolution-X Android 14 (udc) manbasi yuklandi!"
+          elif git clone --depth=1 -b lineage-21.0 https://github.com kernel-src; then
+            echo "MUVAFFAQIYATLI: SKGLab Android 14 (lineage-21.0) manbasi yuklandi!"
+          else
+            git clone --depth=1 -b lineage-23.2 https://github.com kernel-src
+            echo "MUVAFFAQIYATLI: SKGLab asosiy manbasi yuklandi!"
+          fi
 
       - name: Unlock Speed-Bin 0 (700MHz & 812MHz) & Audio Fix
         run: |
           cd kernel-src
-          # GPU Speed Bin eFuse tekshiruvini 0 ga o'tkazish (700MHz va 812MHz zavod jadvalini ochadi)
           python3 -c '
           import glob, re
-          for path in glob.glob("drivers/gpu/msm/*.c"):
+          unlocked = 0
+          for path in glob.glob("drivers/gpu/msm/**/*.c", recursive=True):
               with open(path, "r") as f:
                   content = f.read()
-              if "speed_bin" in content and "nvmem" in content:
+              new_content = content
+              if "qcom,speed-bin" in new_content:
                   new_content = re.sub(
                       r"(of_property_read_u32\([^;]+?\"qcom,speed-bin\"[^;]+?;)",
                       r"\1\n\t*speed_bin = 0;",
-                      content
+                      new_content
                   )
+              if "adreno_read_speed_bin" in new_content:
                   new_content = re.sub(
                       r"(adreno_read_speed_bin\([^)]+\)\s*\{)",
                       r"\1\n\treturn 0;",
                       new_content
                   )
-                  if new_content != content:
-                      with open(path, "w") as f:
-                          f.write(new_content)
-                      print("SPEED BIN UNLOCKED IN:", path)
+              if new_content != content:
+                  with open(path, "w") as f:
+                      f.write(new_content)
+                  print("SPEED BIN UNLOCKED IN:", path)
+                  unlocked += 1
+          if unlocked == 0:
+              print("ESLATMA: speed_bin funksiyasi topilmadi, fayl tuzilishini tekshirish kerak.")
           '
 
-          # Audio va modul mosligi
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
             --disable CONFIG_MODVERSIONS \
@@ -56,7 +64,7 @@ jobs:
             --enable CONFIG_PINCTRL_LPI \
             --enable CONFIG_SND_SOC_LPASS_CDC
 
-      - name: Build Android 14 Kernel Image
+      - name: Build Final Kernel Image
         run: |
           cd kernel-src
           export ARCH=arm64
@@ -67,5 +75,5 @@ jobs:
       - name: Upload Final Kernel Image
         uses: actions/upload-artifact@v4
         with:
-          name: taoyao-a14-gpu-unlocked
+          name: taoyao-gpu-unlocked-image
           path: kernel-src/out/arch/arm64/boot/Image
