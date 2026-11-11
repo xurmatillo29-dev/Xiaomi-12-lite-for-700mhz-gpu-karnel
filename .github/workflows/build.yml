@@ -4,11 +4,10 @@ on:
 
 jobs:
   build-kernel:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - name: Install System Dependencies (Direct Mirror)
+      - name: Install System Dependencies
         run: |
-          echo "http://kernel.org" | sudo tee /etc/apt/apt-mirrors.txt
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends bc bison build-essential ccache flex libelf-dev libssl-dev lz4 clang lld llvm device-tree-compiler
 
