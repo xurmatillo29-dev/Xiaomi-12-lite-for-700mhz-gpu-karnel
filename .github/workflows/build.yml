@@ -5,15 +5,19 @@ on:
 jobs:
   build-kernel:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip unzip zlib1g-dev clang lld llvm device-tree-compiler python3
 
-      - name: Download orig_dtbo.zip
+      - name: Download orig_dtbo.zip from Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          curl -f -L -o orig_dtbo.zip "https://github.com"
+          gh release download V1.0 -R xurmatillo29-dev/Xiaomi-12-lite-for-700mhz-gpu-karnel -p "orig_dtbo.zip"
           unzip -o orig_dtbo.zip -d orig_dtbo_extracted
           ls -la orig_dtbo_extracted
 
