@@ -6,14 +6,9 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
-      - name: Download Latest Clang & LLD (Auto URL)
+      - name: Clone Official LineageOS AOSP Clang
         run: |
-          mkdir -p clang
-          CLANG_URL=$(curl -s https://github.com | grep "browser_download_url.*tar.gz" | cut -d '"' -f 4 | head -n 1)
-          echo "Yuklanmoqda: $CLANG_URL"
-          curl -f -L "$CLANG_URL" -o clang.tar.gz
-          tar -xzf clang.tar.gz -C clang
-          rm clang.tar.gz
+          git clone --depth=1 https://github.com clang
 
       - name: Clone Kernel Source
         uses: actions/checkout@v4
