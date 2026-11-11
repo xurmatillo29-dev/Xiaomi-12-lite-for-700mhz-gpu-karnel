@@ -6,10 +6,11 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
-      - name: Install System Dependencies
+      - name: Install System Dependencies (Fast Mirror)
         run: |
+          sudo sed -i 's|://ubuntu.com|://ubuntu.com|g' /etc/apt/sources.list
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip unzip zlib1g-dev clang lld llvm device-tree-compiler python3
+          sudo apt-get install -y --no-install-recommends bc bison build-essential ccache curl flex git libelf-dev libssl-dev lz4 make zip unzip zlib1g-dev clang lld llvm device-tree-compiler python3
 
       - name: Clone Android 14 Kernel Source (Smart Fallback)
         run: |
