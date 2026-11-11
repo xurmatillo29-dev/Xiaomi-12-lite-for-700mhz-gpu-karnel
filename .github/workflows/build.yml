@@ -4,27 +4,24 @@ on:
 
 jobs:
   build-kernel:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends bc bison build-essential ccache flex libelf-dev libssl-dev lz4 clang lld llvm device-tree-compiler
+          sudo apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf libelf-dev libssl-dev libpcre2-dev lz4 make openjdk-11-jdk rsync liblz4-tool zip unzip zlib1g-dev clang lld llvm device-tree-compiler python3
 
-      - name: Clone Android 14 Kernel Source (Smart Fallback)
-        run: |
-          if git clone --depth=1 -b udc https://github.com kernel-src; then
-            echo "MUVAFFAQIYATLI: Evolution-X Android 14 (udc) manbasi yuklandi!"
-          elif git clone --depth=1 -b lineage-21.0 https://github.com kernel-src; then
-            echo "MUVAFFAQIYATLI: SKGLab Android 14 (lineage-21.0) manbasi yuklandi!"
-          else
-            git clone --depth=1 -b lineage-23.2 https://github.com kernel-src
-            echo "MUVAFFAQIYATLI: SKGLab asosiy manbasi yuklandi!"
-          fi
+      - name: Clone Kernel Source
+        uses: actions/checkout@v4
+        with:
+          repository: skglab-dev/kernel_xiaomi_taoyao
+          ref: lineage-23.2
+          path: kernel-src
 
       - name: Unlock Speed-Bin 0 (700MHz & 812MHz) & Audio Fix
         run: |
           cd kernel-src
+          # 1. GPU Speed Bin eFuse blokini ochish (Bin 117 -> Speed Bin 0: 700MHz & 812MHz)
           python3 -c '
           import glob, re
           unlocked = 0
@@ -50,9 +47,10 @@ jobs:
                   print("SPEED BIN UNLOCKED IN:", path)
                   unlocked += 1
           if unlocked == 0:
-              print("ESLATMA: speed_bin funksiyasi topilmadi, fayl tuzilishini tekshirish kerak.")
+              print("ESLATMA: speed_bin funksiyasi topilmadi!")
           '
 
+          # 2. Ovoz (Audio) va modul mosligini to'liq tiklash
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
             --disable CONFIG_MODVERSIONS \
@@ -75,5 +73,5 @@ jobs:
       - name: Upload Final Kernel Image
         uses: actions/upload-artifact@v4
         with:
-          name: taoyao-gpu-unlocked-image
+          name: taoyao-gpu700-812-audiofix
           path: kernel-src/out/arch/arm64/boot/Image
