@@ -8,7 +8,7 @@ jobs:
     steps:
       - name: Install System Dependencies (Direct Mirror)
         run: |
-          echo "http://ubuntu.com" | sudo tee /etc/apt/apt-mirrors.txt
+          echo "http://kernel.org" | sudo tee /etc/apt/apt-mirrors.txt
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends bc bison build-essential ccache flex libelf-dev libssl-dev lz4 clang lld llvm device-tree-compiler
 
