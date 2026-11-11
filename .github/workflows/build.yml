@@ -8,7 +8,7 @@ jobs:
     steps:
       - name: Install System Dependencies (Fast Mirror)
         run: |
-          sudo sed -i 's|://ubuntu.com|://ubuntu.com|g' /etc/apt/sources.list
+          sudo find /etc/apt/ -type f -exec sed -i 's|://ubuntu.com|://ubuntu.com|g' {} +
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends bc bison build-essential ccache curl flex git libelf-dev libssl-dev lz4 make zip unzip zlib1g-dev clang lld llvm device-tree-compiler python3
 
