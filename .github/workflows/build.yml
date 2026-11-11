@@ -44,15 +44,15 @@ jobs:
           make O=out taoyao_defconfig
           make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image dtbs
           
-          # Siz yuborgan to'g'ri havoladan orig_dtbo.zip ni yuklab olish
+          # Releases bo'limidan orig_dtbo.zip ni avtomatik yuklab olish va ochish
           cd ..
-          curl -L -o orig_dtbo.zip "https://github.com/user-attachments/files/34676195/orig_dtbo.zip"
+          curl -L -o orig_dtbo.zip "https://github.com"
           unzip orig_dtbo.zip
           
-          # Yadro ichidagi mkdtboimg.py skripti yordamida birlashtirish
+          # 'unpack' o'rniga 'dump -b' buyrug'i bilan bo'laklash va birlashtirish
           MKDTBO_SCRIPT=$(find kernel-src -name "mkdtboimg.py" | head -n 1)
           mkdir unpacked_dtbo
-          python3 "$MKDTBO_SCRIPT" unpack dtbo.img -o unpacked_dtbo/dtbo
+          python3 "$MKDTBO_SCRIPT" dump dtbo.img -b unpacked_dtbo/dtbo
           cp kernel-src/out/arch/arm64/boot/dts/vendor/qcom/taoyao-sm7325-overlay.dtbo unpacked_dtbo/dtbo.0
           python3 "$MKDTBO_SCRIPT" create final_dtbo.img unpacked_dtbo/dtbo.*
 
