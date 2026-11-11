@@ -6,6 +6,13 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
+      - name: Download Prebuilt Clang & LLD (No apt-get)
+        run: |
+          mkdir -p clang
+          curl -L -s "https://github.com" -o clang.tar.gz
+          tar -xzf clang.tar.gz -C clang
+          rm clang.tar.gz
+
       - name: Clone Kernel Source
         uses: actions/checkout@v4
         with:
@@ -59,11 +66,12 @@ jobs:
 
       - name: Build Final Kernel Image
         run: |
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
           cd kernel-src
           export ARCH=arm64
           export SUBARCH=arm64
           make O=out taoyao_defconfig
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip LLVM=1 LLVM_IAS=1 Image
 
       - name: Upload Final Kernel Image
         uses: actions/upload-artifact@v4
