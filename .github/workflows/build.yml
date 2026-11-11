@@ -66,17 +66,31 @@ jobs:
           
           cd ..
           ORIG_DTBO_PATH=$(find orig_dtbo_extracted -name "dtbo.img" | head -n 1)
-          if [ -z "$ORIG_DTBO_PATH" ]; then
-            echo "XATO: orig_dtbo.zip ichidan dtbo.img topilmadi!"
-            exit 1
-          fi
-          
           MKDTBO_SCRIPT=$(find kernel-src -name "mkdtboimg.py" | head -n 1)
+          
+          # Python 3 TypeError xatosini tuzatish (/ 4 -> // 4)
+          sed -i 's|/ 4|// 4|g' "$MKDTBO_SCRIPT"
+          
           mkdir unpacked_dtbo
           python3 "$MKDTBO_SCRIPT" dump "$ORIG_DTBO_PATH" -b unpacked_dtbo/dtbo
           
           NEW_DTBO=$(find kernel-src/out/arch/arm64/boot/dts/ -name "*taoyao*overlay.dtbo" | head -n 1)
-          cp "$NEW_DTBO" unpacked_dtbo/dtbo.0
+          
+          # Asl dtbo ichidan aynan taoyao bo'lagini topib almashtirish
+          REPLACED=0
+          for f in unpacked_dtbo/dtbo.*; do
+            if strings "$f" | grep -qi "taoyao"; then
+              echo "Topildi va almashtirildi: $f"
+              cp "$NEW_DTBO" "$f"
+              REPLACED=1
+            fi
+          done
+          
+          if [ "$REPLACED" -eq 0 ]; then
+            echo "Taoyao yozuvi topilmadi, dtbo.0 almashtirilmoqda"
+            cp "$NEW_DTBO" unpacked_dtbo/dtbo.0
+          fi
+          
           python3 "$MKDTBO_SCRIPT" create final_dtbo.img unpacked_dtbo/dtbo.*
 
       - name: Upload Final Overclocked & Audio Fixed Files
@@ -86,3 +100,4 @@ jobs:
           path: |
             kernel-src/out/arch/arm64/boot/Image
             final_dtbo.img
+            kernel-src/out/arch/arm64/boot/dts/vendor/qcom/*taoyao*overlay.dtbo
