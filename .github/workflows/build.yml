@@ -1,4 +1,4 @@
-name: Taoyao GPU 670MHz Bin117-Safe + Audio Fix
+name: EvolutionX 5.4.259 Taoyao GPU 670MHz Builder
 on:
   workflow_dispatch:
 
@@ -11,17 +11,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends bc bison flex libelf-dev libssl-dev lz4 clang lld llvm
 
-      - name: Clone Kernel Source
+      - name: Clone Official EvolutionX Taoyao Kernel Source
         uses: actions/checkout@v4
         with:
-          repository: skglab-dev/kernel_xiaomi_taoyao
-          ref: lineage-23.2
+          repository: Evolution-X-Devices/kernel_xiaomi_taoyao
           path: kernel-src
 
-      - name: Patch GPU 550MHz to 670MHz (Bin 117 Safe) & Enable Audio
+      - name: Patch GPU 550MHz to 670MHz (Bin 117 Safe)
         run: |
           cd kernel-src
-          # 1. DTB dan 550MHz (550000000) o'qilganda uni 670MHz (670000000) ga oshirish:
           python3 -c '
           import re
           with open("drivers/gpu/msm/adreno.c", "r") as f:
@@ -40,28 +38,24 @@ jobs:
           git diff drivers/gpu/msm/adreno.c
           git diff --exit-code drivers/gpu/msm/adreno.c && exit 1 || echo "MUVAFFAQIYATLI: 550MHz -> 670MHz patchi tushdi!"
 
-          # 2. Ovoz (Audio) va sensor mosligini to'liq yoqish
-          scripts/config --file arch/arm64/configs/taoyao_defconfig \
-            --enable CONFIG_MODULE_FORCE_LOAD \
-            --disable CONFIG_MODVERSIONS \
-            --enable CONFIG_SOUND \
-            --enable CONFIG_SND \
-            --enable CONFIG_SND_SOC \
-            --enable CONFIG_SND_SOC_WCD938X \
-            --enable CONFIG_SND_SOC_WSA883X \
-            --enable CONFIG_PINCTRL_LPI \
-            --enable CONFIG_SND_SOC_LPASS_CDC
+          DEFCONFIG=$(find arch/arm64/configs -name "*taoyao*defconfig" | sed 's|arch/arm64/configs/||' | head -n 1)
+          echo "Topilgan defconfig: $DEFCONFIG"
+          echo "DEFCONFIG=$DEFCONFIG" >> $GITHUB_ENV
 
-      - name: Build Final Kernel Image
+          scripts/config --file arch/arm64/configs/$DEFCONFIG \
+            --enable CONFIG_MODULE_FORCE_LOAD \
+            --disable CONFIG_MODVERSIONS
+
+      - name: Build EvolutionX Kernel Image
         run: |
           cd kernel-src
           export ARCH=arm64
           export SUBARCH=arm64
-          make O=out taoyao_defconfig
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
+          make O=out $DEFCONFIG
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip LLVM=1 LLVM_IAS=1 Image
 
-      - name: Upload Final Kernel Image
+      - name: Upload EvolutionX Kernel Image
         uses: actions/upload-artifact@v4
         with:
-          name: taoyao-gpu670-safe-audiofix
+          name: evolutionx-taoyao-gpu670-image
           path: kernel-src/out/arch/arm64/boot/Image
