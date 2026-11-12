@@ -48,8 +48,8 @@ jobs:
           export LLVM=1
           export LLVM_IAS=1
 
-          # Asosiy lahaina-qgki_defconfig va taoyao fragmentini birlashtirish:
-          BASE_CFG=$(find arch/arm64/configs -name "lahaina-qgki_defconfig" | head -n 1)
+          mkdir -p out
+          BASE_CFG=$(find arch/arm64/configs -name "*gki_defconfig" ! -name "*taoyao*" | head -n 1)
           TAOYAO_CFG=$(find arch/arm64/configs -name "*taoyao*defconfig" | head -n 1)
           echo "Asosiy config: $BASE_CFG | Qurilma config: $TAOYAO_CFG"
 
