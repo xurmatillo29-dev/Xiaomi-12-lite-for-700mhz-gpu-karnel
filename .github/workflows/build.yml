@@ -1,4 +1,4 @@
-name: Taoyao GPU 700-812MHz Builder
+name: Taoyao GPU 700-812MHz + Full Modules Builder
 on:
   workflow_dispatch:
 
@@ -18,32 +18,31 @@ jobs:
           ref: lineage-23.2
           path: kernel-src
 
-      - name: Patch GPU Speed-Bin & Audio Fix
+      - name: Patch GPU Speed-Bin 0 & Module Compatibility
         run: |
           cd kernel-src
           sed -i 's/of_property_read_u32(node, "qcom,speed-bin", speed_bin);/of_property_read_u32(node, "qcom,speed-bin", speed_bin); *speed_bin = 0;/g' drivers/gpu/msm/adreno.c
           git diff drivers/gpu/msm/adreno.c
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
-            --disable CONFIG_MODVERSIONS \
-            --enable CONFIG_SOUND \
-            --enable CONFIG_SND \
-            --enable CONFIG_SND_SOC \
-            --enable CONFIG_SND_SOC_WCD938X \
-            --enable CONFIG_SND_SOC_WSA883X \
-            --enable CONFIG_PINCTRL_LPI \
-            --enable CONFIG_SND_SOC_LPASS_CDC
+            --disable CONFIG_MODVERSIONS
 
-      - name: Build Kernel Image
+      - name: Build Kernel Image & Modules
         run: |
           cd kernel-src
           export ARCH=arm64
           export SUBARCH=arm64
           make O=out taoyao_defconfig
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image modules
+          make O=out CC=clang LD=ld.lld INSTALL_MOD_PATH=../mod_out INSTALL_MOD_STRIP=1 modules_install
+          mkdir -p ../final_modules
+          find ../mod_out -name "*.ko" -exec cp {} ../final_modules/ \;
+          ls -lh ../final_modules/
 
-      - name: Upload Kernel Image
+      - name: Upload Image and Kernel Modules
         uses: actions/upload-artifact@v4
         with:
-          name: taoyao-gpu700-812-audiofix
-          path: kernel-src/out/arch/arm64/boot/Image
+          name: taoyao-gpu812-with-modules
+          path: |
+            kernel-src/out/arch/arm64/boot/Image
+            final_modules/*.ko
