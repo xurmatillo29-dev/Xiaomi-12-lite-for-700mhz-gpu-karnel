@@ -21,8 +21,8 @@ jobs:
       - name: Patch GPU Speed-Bin 0 & Module Compatibility
         run: |
           cd kernel-src
-          sed -i 's/of_property_read_u32(node, "qcom,speed-bin", speed_bin);/of_property_read_u32(node, "qcom,speed-bin", speed_bin); *speed_bin = 0;/g' drivers/gpu/msm/adreno.c
-          git diff drivers/gpu/msm/adreno.c
+          sed -i 's/of_property_read_u32(.*\"qcom,speed-bin\".*);/& speed_bin = 0;/g' drivers/gpu/msm/adreno.c drivers/gpu/msm/kgsl_pwrscale.c
+          git diff drivers/gpu/msm/
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
             --disable CONFIG_MODVERSIONS
