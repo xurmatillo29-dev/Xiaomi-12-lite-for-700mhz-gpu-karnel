@@ -1,4 +1,4 @@
-name: Taoyao GPU 700-812MHz + Full Modules Builder
+name: Taoyao GPU 700-812MHz + Audio Fix Final
 on:
   workflow_dispatch:
 
@@ -18,33 +18,56 @@ jobs:
           ref: lineage-23.2
           path: kernel-src
 
-      - name: Patch GPU Speed-Bin 0 & Module Compatibility
+      - name: Patch GPU Speed-Bin 0 & Enable Audio
         run: |
           cd kernel-src
-          grep -rn -C 3 "speed-bin" drivers/gpu/msm/
-          sed -i 's/adreno_read_speed_bin(adreno_dev);/0;/g' drivers/gpu/msm/adreno.c
-          sed -i 's/of_property_read_u32(.*\"qcom,speed-bin\".*);/& speed_bin = 0;/g' drivers/gpu/msm/adreno.c
-          git diff drivers/gpu/msm/
+          python3 -c '
+          import re
+          with open("drivers/gpu/msm/adreno.c", "r") as f:
+              text = f.read()
+
+          def repl(m):
+              full = m.group(0)
+              arg = m.group(1).strip()
+              if arg.startswith("&"):
+                  fix = arg[1:].strip() + " = 0;"
+              else:
+                  fix = "*" + arg + " = 0;"
+              return full + "\n\t" + fix
+
+          new_text = re.sub(
+              r"of_property_read_u32\s*\([^,]+,\s*\"qcom,speed-bin\"\s*,\s*([^)]+)\)\s*;",
+              repl,
+              text,
+              flags=re.DOTALL
+          )
+          with open("drivers/gpu/msm/adreno.c", "w") as f:
+              f.write(new_text)
+          '
+          git diff drivers/gpu/msm/adreno.c
+          git diff --exit-code drivers/gpu/msm/adreno.c && exit 1 || echo "MUVAFFAQIYATLI: Speed-Bin 0 patchi C sintaksisi bilan mos tushdi!"
+
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
-            --disable CONFIG_MODVERSIONS
+            --disable CONFIG_MODVERSIONS \
+            --enable CONFIG_SOUND \
+            --enable CONFIG_SND \
+            --enable CONFIG_SND_SOC \
+            --enable CONFIG_SND_SOC_WCD938X \
+            --enable CONFIG_SND_SOC_WSA883X \
+            --enable CONFIG_PINCTRL_LPI \
+            --enable CONFIG_SND_SOC_LPASS_CDC
 
-      - name: Build Kernel Image & Modules
+      - name: Build Final Kernel Image
         run: |
           cd kernel-src
           export ARCH=arm64
           export SUBARCH=arm64
           make O=out taoyao_defconfig
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image modules
-          make O=out CC=clang LD=ld.lld STRIP=llvm-strip INSTALL_MOD_PATH=$GITHUB_WORKSPACE/mod_out INSTALL_MOD_STRIP=1 modules_install
-          mkdir -p $GITHUB_WORKSPACE/final_modules
-          find $GITHUB_WORKSPACE/mod_out -name "*.ko" -exec cp {} $GITHUB_WORKSPACE/final_modules/ \;
-          ls -lh $GITHUB_WORKSPACE/final_modules/ | head -n 30
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
 
-      - name: Upload Image and Kernel Modules
+      - name: Upload Final Kernel Image
         uses: actions/upload-artifact@v4
         with:
-          name: taoyao-gpu812-with-modules
-          path: |
-            kernel-src/out/arch/arm64/boot/Image
-            final_modules/*.ko
+          name: taoyao-gpu812-audiofix-final
+          path: kernel-src/out/arch/arm64/boot/Image
