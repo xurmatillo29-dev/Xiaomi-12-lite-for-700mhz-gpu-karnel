@@ -38,21 +38,27 @@ jobs:
           git diff drivers/gpu/msm/adreno.c
           git diff --exit-code drivers/gpu/msm/adreno.c && exit 1 || echo "MUVAFFAQIYATLI: 550MHz -> 670MHz patchi tushdi!"
 
-          DEFCONFIG=$(find arch/arm64/configs -name "*taoyao*defconfig" | sed 's|arch/arm64/configs/||' | head -n 1)
-          echo "Topilgan defconfig: $DEFCONFIG"
-          echo "DEFCONFIG=$DEFCONFIG" >> $GITHUB_ENV
-
-          scripts/config --file arch/arm64/configs/$DEFCONFIG \
-            --enable CONFIG_MODULE_FORCE_LOAD \
-            --disable CONFIG_MODVERSIONS
-
       - name: Build EvolutionX Kernel Image
         run: |
           cd kernel-src
           export ARCH=arm64
           export SUBARCH=arm64
-          make O=out $DEFCONFIG
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip LLVM=1 LLVM_IAS=1 Image
+          export CC=clang
+          export LD=ld.lld
+          export LLVM=1
+          export LLVM_IAS=1
+
+          # Asosiy lahaina-qgki_defconfig va taoyao fragmentini birlashtirish:
+          BASE_CFG=$(find arch/arm64/configs -name "lahaina-qgki_defconfig" | head -n 1)
+          TAOYAO_CFG=$(find arch/arm64/configs -name "*taoyao*defconfig" | head -n 1)
+          echo "Asosiy config: $BASE_CFG | Qurilma config: $TAOYAO_CFG"
+
+          ARCH=arm64 scripts/kconfig/merge_config.sh -m -O out $BASE_CFG $TAOYAO_CFG
+          scripts/config --file out/.config \
+            --enable CONFIG_MODULE_FORCE_LOAD \
+            --disable CONFIG_MODVERSIONS
+          make -j$(nproc --all) O=out olddefconfig
+          make -j$(nproc --all) O=out NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
 
       - name: Upload EvolutionX Kernel Image
         uses: actions/upload-artifact@v4
