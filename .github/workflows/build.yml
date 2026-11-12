@@ -41,6 +41,9 @@ jobs:
       - name: Build EvolutionX Kernel Image
         run: |
           cd kernel-src
+          ls -la build.config* arch/arm64/configs/vendor/ || true
+          grep -rn "taoyao" build.config* arch/arm64/configs/ || true
+
           export ARCH=arm64
           export SUBARCH=arm64
           export CC=clang
@@ -48,12 +51,14 @@ jobs:
           export LLVM=1
           export LLVM_IAS=1
 
+          # Yupik (SM7325) va Taoyao konfiguratsiyasini birlashtirish:
           mkdir -p out
-          BASE_CFG=$(find arch/arm64/configs -name "*gki_defconfig" ! -name "*taoyao*" | head -n 1)
-          TAOYAO_CFG=$(find arch/arm64/configs -name "*taoyao*defconfig" | head -n 1)
-          echo "Asosiy config: $BASE_CFG | Qurilma config: $TAOYAO_CFG"
+          BASE_CFG=$(find arch/arm64/configs -name "*yupik*qgki_defconfig" -o -name "gki_defconfig" | head -n 1)
+          FRAG_CFGS=$(find arch/arm64/configs -name "*yupik*.config" -o -name "*taoyao*" | sort)
+          echo "BASE: $BASE_CFG"
+          echo "FRAGMENTS: $FRAG_CFGS"
 
-          ARCH=arm64 scripts/kconfig/merge_config.sh -m -O out $BASE_CFG $TAOYAO_CFG
+          ARCH=arm64 scripts/kconfig/merge_config.sh -m -O out $BASE_CFG $FRAG_CFGS
           scripts/config --file out/.config \
             --enable CONFIG_MODULE_FORCE_LOAD \
             --disable CONFIG_MODVERSIONS
