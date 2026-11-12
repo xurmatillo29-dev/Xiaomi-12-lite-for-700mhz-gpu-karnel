@@ -1,77 +1,43 @@
-name: Xiaomi 12 Lite GPU 700-812MHz + Audio Fix Builder
-on:
-  workflow_dispatch:
+### AnyKernel3 Ramdisk Mod Script
+## osm0sis @ xda-developers
 
-jobs:
-  build-kernel:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Install Minimal Kernel Build Tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends bc bison flex libelf-dev libssl-dev lz4 clang lld llvm
+### AnyKernel setup
+# global properties
+properties() { '
+kernel.string=Taoyao-GPU-Unlocked-Kernel by xurmatillo29
+do.devicecheck=1
+do.modules=0
+do.systemless=1
+do.cleanup=1
+do.cleanuponabort=0
+device.name1=taoyao
+device.name2=taoyao_global
+device.name3=
+device.name4=
+device.name5=
+supported.versions=
+supported.patchlevels=
+supported.vendorpatchlevels=
+'; } # end properties
 
-      - name: Clone Kernel Source
-        uses: actions/checkout@v4
-        with:
-          repository: skglab-dev/kernel_xiaomi_taoyao
-          ref: lineage-23.2
-          path: kernel-src
 
-      - name: Unlock Speed-Bin 0 (700MHz & 812MHz) & Audio Fix
-        run: |
-          cd kernel-src
-          # 1. GPU Speed Bin eFuse blokini ochish (Bin 117 -> Speed Bin 0: 700MHz & 812MHz)
-          python3 -c '
-          import glob, re
-          unlocked = 0
-          for path in glob.glob("drivers/gpu/msm/**/*.c", recursive=True):
-              with open(path, "r") as f:
-                  content = f.read()
-              new_content = content
-              if "qcom,speed-bin" in new_content:
-                  new_content = re.sub(
-                      r"(of_property_read_u32\([^;]+?\"qcom,speed-bin\"[^;]+?;)",
-                      r"\1\n\t*speed_bin = 0;",
-                      new_content
-                  )
-              if "adreno_read_speed_bin" in new_content:
-                  new_content = re.sub(
-                      r"(adreno_read_speed_bin\([^)]+\)\s*\{)",
-                      r"\1\n\treturn 0;",
-                      new_content
-                  )
-              if new_content != content:
-                  with open(path, "w") as f:
-                      f.write(new_content)
-                  print("SPEED BIN UNLOCKED IN:", path)
-                  unlocked += 1
-          if unlocked == 0:
-              print("ESLATMA: speed_bin funksiyasi topilmadi!")
-          '
+### AnyKernel install
+## boot files attributes
+boot_attributes() {
+set_perm_recursive 0 0 755 644 $RAMDISK/*;
+set_perm_recursive 0 0 750 750 $RAMDISK/init* $RAMDISK/sbin;
+} # end attributes
 
-          # 2. Ovoz (Audio) va modul mosligini to'liq tiklash
-          scripts/config --file arch/arm64/configs/taoyao_defconfig \
-            --enable CONFIG_MODULE_FORCE_LOAD \
-            --disable CONFIG_MODVERSIONS \
-            --enable CONFIG_SOUND \
-            --enable CONFIG_SND \
-            --enable CONFIG_SND_SOC \
-            --enable CONFIG_SND_SOC_WCD938X \
-            --enable CONFIG_SND_SOC_WSA883X \
-            --enable CONFIG_PINCTRL_LPI \
-            --enable CONFIG_SND_SOC_LPASS_CDC
+# boot shell variables
+BLOCK=/dev/block/bootdevice/by-name/boot;
+IS_SLOT_DEVICE=1;
+RAMDISK_COMPRESSION=auto;
+PATCH_VBMETA_FLAG=auto;
 
-      - name: Build Final Kernel Image
-        run: |
-          cd kernel-src
-          export ARCH=arm64
-          export SUBARCH=arm64
-          make O=out taoyao_defconfig
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
+# import functions/variables and setup patching - see for reference (DO NOT REMOVE)
+. tools/ak3-core.sh;
 
-      - name: Upload Final Kernel Image
-        uses: actions/upload-artifact@v4
-        with:
-          name: taoyao-gpu700-812-audiofix
-          path: kernel-src/out/arch/arm64/boot/Image
+# boot install
+split_boot;
+flash_boot;
+## end boot install
