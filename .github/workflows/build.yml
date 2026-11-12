@@ -21,7 +21,9 @@ jobs:
       - name: Patch GPU Speed-Bin 0 & Module Compatibility
         run: |
           cd kernel-src
-          sed -i 's/of_property_read_u32(.*\"qcom,speed-bin\".*);/& speed_bin = 0;/g' drivers/gpu/msm/adreno.c drivers/gpu/msm/kgsl_pwrscale.c
+          grep -rn -C 3 "speed-bin" drivers/gpu/msm/
+          sed -i 's/adreno_read_speed_bin(adreno_dev);/0;/g' drivers/gpu/msm/adreno.c
+          sed -i 's/of_property_read_u32(.*\"qcom,speed-bin\".*);/& speed_bin = 0;/g' drivers/gpu/msm/adreno.c
           git diff drivers/gpu/msm/
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
@@ -34,10 +36,10 @@ jobs:
           export SUBARCH=arm64
           make O=out taoyao_defconfig
           make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image modules
-          make O=out CC=clang LD=ld.lld INSTALL_MOD_PATH=../mod_out INSTALL_MOD_STRIP=1 modules_install
+          make O=out CC=clang LD=ld.lld STRIP=llvm-strip INSTALL_MOD_PATH=../mod_out INSTALL_MOD_STRIP=1 modules_install
           mkdir -p ../final_modules
           find ../mod_out -name "*.ko" -exec cp {} ../final_modules/ \;
-          ls -lh ../final_modules/
+          ls -lh ../final_modules/ | head -n 30
 
       - name: Upload Image and Kernel Modules
         uses: actions/upload-artifact@v4
