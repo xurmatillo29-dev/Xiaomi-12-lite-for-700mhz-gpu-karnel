@@ -1,43 +1,49 @@
-### AnyKernel3 Ramdisk Mod Script
-## osm0sis @ xda-developers
+name: Taoyao GPU 700-812MHz Builder
+on:
+  workflow_dispatch:
 
-### AnyKernel setup
-# global properties
-properties() { '
-kernel.string=Taoyao-GPU-Unlocked-Kernel by xurmatillo29
-do.devicecheck=1
-do.modules=0
-do.systemless=1
-do.cleanup=1
-do.cleanuponabort=0
-device.name1=taoyao
-device.name2=taoyao_global
-device.name3=
-device.name4=
-device.name5=
-supported.versions=
-supported.patchlevels=
-supported.vendorpatchlevels=
-'; } # end properties
+jobs:
+  build-kernel:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install Minimal Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bc bison flex libelf-dev libssl-dev lz4 clang lld llvm
 
+      - name: Clone Kernel Source
+        uses: actions/checkout@v4
+        with:
+          repository: skglab-dev/kernel_xiaomi_taoyao
+          ref: lineage-23.2
+          path: kernel-src
 
-### AnyKernel install
-## boot files attributes
-boot_attributes() {
-set_perm_recursive 0 0 755 644 $RAMDISK/*;
-set_perm_recursive 0 0 750 750 $RAMDISK/init* $RAMDISK/sbin;
-} # end attributes
+      - name: Patch GPU Speed-Bin & Audio Fix
+        run: |
+          cd kernel-src
+          sed -i 's/of_property_read_u32(node, "qcom,speed-bin", speed_bin);/of_property_read_u32(node, "qcom,speed-bin", speed_bin); *speed_bin = 0;/g' drivers/gpu/msm/adreno.c
+          git diff drivers/gpu/msm/adreno.c
+          scripts/config --file arch/arm64/configs/taoyao_defconfig \
+            --enable CONFIG_MODULE_FORCE_LOAD \
+            --disable CONFIG_MODVERSIONS \
+            --enable CONFIG_SOUND \
+            --enable CONFIG_SND \
+            --enable CONFIG_SND_SOC \
+            --enable CONFIG_SND_SOC_WCD938X \
+            --enable CONFIG_SND_SOC_WSA883X \
+            --enable CONFIG_PINCTRL_LPI \
+            --enable CONFIG_SND_SOC_LPASS_CDC
 
-# boot shell variables
-BLOCK=/dev/block/bootdevice/by-name/boot;
-IS_SLOT_DEVICE=1;
-RAMDISK_COMPRESSION=auto;
-PATCH_VBMETA_FLAG=auto;
+      - name: Build Kernel Image
+        run: |
+          cd kernel-src
+          export ARCH=arm64
+          export SUBARCH=arm64
+          make O=out taoyao_defconfig
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
 
-# import functions/variables and setup patching - see for reference (DO NOT REMOVE)
-. tools/ak3-core.sh;
-
-# boot install
-split_boot;
-flash_boot;
-## end boot install
+      - name: Upload Kernel Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: taoyao-gpu700-812-audiofix
+          path: kernel-src/out/arch/arm64/boot/Image
