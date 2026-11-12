@@ -15,11 +15,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Evolution-X-Devices/kernel_xiaomi_taoyao
+          submodules: recursive
           path: kernel-src
 
-      - name: Patch GPU 550MHz to 670MHz (Bin 117 Safe)
+      - name: Patch GPU 550MHz to 670MHz (Bin 117 Safe) & Fix KernelSU Kconfig
         run: |
           cd kernel-src
+          # 1. Agar drivers/kernelsu/Kconfig bo'sh bo'lsa, Kconfig xatosini oldini olish:
+          if [ ! -f drivers/kernelsu/Kconfig ]; then
+            sed -i '/kernelsu/d' drivers/Kconfig
+          fi
+
+          # 2. GPU 550MHz -> 670MHz (Bin 117 Safe) patchi:
           python3 -c '
           import re
           with open("drivers/gpu/msm/adreno.c", "r") as f:
@@ -41,9 +48,6 @@ jobs:
       - name: Build EvolutionX Kernel Image
         run: |
           cd kernel-src
-          ls -la build.config* arch/arm64/configs/vendor/ || true
-          grep -rn "taoyao" build.config* arch/arm64/configs/ || true
-
           export ARCH=arm64
           export SUBARCH=arm64
           export CC=clang
@@ -51,14 +55,12 @@ jobs:
           export LLVM=1
           export LLVM_IAS=1
 
-          # Yupik (SM7325) va Taoyao konfiguratsiyasini birlashtirish:
           mkdir -p out
-          BASE_CFG=$(find arch/arm64/configs -name "*yupik*qgki_defconfig" -o -name "gki_defconfig" | head -n 1)
-          FRAG_CFGS=$(find arch/arm64/configs -name "*yupik*.config" -o -name "*taoyao*" | sort)
-          echo "BASE: $BASE_CFG"
-          echo "FRAGMENTS: $FRAG_CFGS"
+          BASE_CFG=$(find arch/arm64/configs -name "gki_defconfig" | head -n 1)
+          GKI_FRAG=$(find arch/arm64/configs -name "*taoyao*GKI.config" | head -n 1)
+          QGKI_FRAG=$(find arch/arm64/configs -name "*taoyao*QGKI.config" | head -n 1)
 
-          ARCH=arm64 scripts/kconfig/merge_config.sh -m -O out $BASE_CFG $FRAG_CFGS
+          ARCH=arm64 scripts/kconfig/merge_config.sh -m -O out $BASE_CFG $GKI_FRAG $QGKI_FRAG
           scripts/config --file out/.config \
             --enable CONFIG_MODULE_FORCE_LOAD \
             --disable CONFIG_MODVERSIONS
