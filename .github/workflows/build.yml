@@ -21,31 +21,44 @@ jobs:
       - name: Patch GPU Speed-Bin 0 & Enable Audio
         run: |
           cd kernel-src
+          grep -rn -C 5 "speed_bin" drivers/gpu/msm/adreno.c drivers/gpu/msm/kgsl_pwrscale.c || true
+
           python3 -c '
           import re
           with open("drivers/gpu/msm/adreno.c", "r") as f:
               text = f.read()
 
-          def repl(m):
-              full = m.group(0)
-              arg = m.group(1).strip()
-              if arg.startswith("&"):
-                  fix = arg[1:].strip() + " = 0;"
-              else:
-                  fix = "*" + arg + " = 0;"
-              return full + "\n\t" + fix
-
+          # 1. adreno_read_speed_bin funksiyasi bo'\''lsa, boshidan return 0; qaytarish
           new_text = re.sub(
-              r"of_property_read_u32\s*\([^,]+,\s*\"qcom,speed-bin\"\s*,\s*([^)]+)\)\s*;",
-              repl,
-              text,
-              flags=re.DOTALL
+              r"(int\s+adreno_read_speed_bin\s*\([^)]+\)\s*\{)",
+              r"\1\n\treturn 0;",
+              text
           )
+
+          # 2. Agar qcom,speed-bin o'\''qilsa, qiymatini 0 qilish
+          if new_text == text:
+              new_text = re.sub(
+                  r"(of_property_read_u32\s*\([^;]+?\"qcom,speed-bin\"[^;]+?;)",
+                  r"\1\n\tspeed_bin = 0;",
+                  text,
+                  flags=re.DOTALL
+              )
+
+          # 3. Agar nvmem orqali speed_bin o'\''qilsa, qiymatini 0 qilish
+          if new_text == text:
+              new_text = re.sub(
+                  r"(nvmem_cell_read\s*\([^;]+?;)",
+                  r"\1\n\tspeed_bin = 0;",
+                  text,
+                  flags=re.DOTALL
+              )
+
           with open("drivers/gpu/msm/adreno.c", "w") as f:
               f.write(new_text)
           '
+
           git diff drivers/gpu/msm/adreno.c
-          git diff --exit-code drivers/gpu/msm/adreno.c && exit 1 || echo "MUVAFFAQIYATLI: Speed-Bin 0 patchi C sintaksisi bilan mos tushdi!"
+          git diff --exit-code drivers/gpu/msm/adreno.c && exit 1 || echo "MUVAFFAQIYATLI: Speed-Bin 0 patchi tushdi!"
 
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
