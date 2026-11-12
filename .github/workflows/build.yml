@@ -1,4 +1,4 @@
-name: Taoyao GPU 700-812MHz + Audio Fix Final
+name: Taoyao GPU 700MHz Safe + Audio Fix Final
 on:
   workflow_dispatch:
 
@@ -18,47 +18,27 @@ jobs:
           ref: lineage-23.2
           path: kernel-src
 
-      - name: Patch GPU Speed-Bin 0 & Enable Audio
+      - name: Patch GPU 700MHz Safe Limit & Enable Audio
         run: |
           cd kernel-src
-          grep -rn -C 5 "speed_bin" drivers/gpu/msm/adreno.c drivers/gpu/msm/kgsl_pwrscale.c || true
-
           python3 -c '
           import re
           with open("drivers/gpu/msm/adreno.c", "r") as f:
               text = f.read()
 
-          # 1. adreno_read_speed_bin funksiyasi bo'\''lsa, boshidan return 0; qaytarish
           new_text = re.sub(
               r"(int\s+adreno_read_speed_bin\s*\([^)]+\)\s*\{)",
               r"\1\n\treturn 0;",
               text
           )
 
-          # 2. Agar qcom,speed-bin o'\''qilsa, qiymatini 0 qilish
-          if new_text == text:
-              new_text = re.sub(
-                  r"(of_property_read_u32\s*\([^;]+?\"qcom,speed-bin\"[^;]+?;)",
-                  r"\1\n\tspeed_bin = 0;",
-                  text,
-                  flags=re.DOTALL
-              )
-
-          # 3. Agar nvmem orqali speed_bin o'\''qilsa, qiymatini 0 qilish
-          if new_text == text:
-              new_text = re.sub(
-                  r"(nvmem_cell_read\s*\([^;]+?;)",
-                  r"\1\n\tspeed_bin = 0;",
-                  text,
-                  flags=re.DOTALL
-              )
-
           with open("drivers/gpu/msm/adreno.c", "w") as f:
               f.write(new_text)
           '
 
-          git diff drivers/gpu/msm/adreno.c
-          git diff --exit-code drivers/gpu/msm/adreno.c && exit 1 || echo "MUVAFFAQIYATLI: Speed-Bin 0 patchi tushdi!"
+          # 812MHz (0x140 kuchlanish) logoda qotishini oldini olish uchun maksimal limitni 700MHz qilish:
+          sed -i 's/pwrctrl->max_pwrlevel = 0;/pwrctrl->max_pwrlevel = 1;/g' drivers/gpu/msm/kgsl_pwrctrl.c
+          git diff drivers/gpu/msm/
 
           scripts/config --file arch/arm64/configs/taoyao_defconfig \
             --enable CONFIG_MODULE_FORCE_LOAD \
@@ -82,5 +62,5 @@ jobs:
       - name: Upload Final Kernel Image
         uses: actions/upload-artifact@v4
         with:
-          name: taoyao-gpu812-audiofix-final
+          name: taoyao-gpu700-safe-audiofix
           path: kernel-src/out/arch/arm64/boot/Image
