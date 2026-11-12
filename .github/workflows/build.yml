@@ -36,10 +36,10 @@ jobs:
           export SUBARCH=arm64
           make O=out taoyao_defconfig
           make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image modules
-          make O=out CC=clang LD=ld.lld STRIP=llvm-strip INSTALL_MOD_PATH=../mod_out INSTALL_MOD_STRIP=1 modules_install
-          mkdir -p ../final_modules
-          find ../mod_out -name "*.ko" -exec cp {} ../final_modules/ \;
-          ls -lh ../final_modules/ | head -n 30
+          make O=out CC=clang LD=ld.lld STRIP=llvm-strip INSTALL_MOD_PATH=$GITHUB_WORKSPACE/mod_out INSTALL_MOD_STRIP=1 modules_install
+          mkdir -p $GITHUB_WORKSPACE/final_modules
+          find $GITHUB_WORKSPACE/mod_out -name "*.ko" -exec cp {} $GITHUB_WORKSPACE/final_modules/ \;
+          ls -lh $GITHUB_WORKSPACE/final_modules/ | head -n 30
 
       - name: Upload Image and Kernel Modules
         uses: actions/upload-artifact@v4
