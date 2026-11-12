@@ -1,4 +1,4 @@
-name: EvolutionX 5.4.259 Taoyao GPU 670MHz Builder
+name: Taoyao Android 14 GPU 670MHz AnyKernel3 Builder
 on:
   workflow_dispatch:
 
@@ -6,69 +6,56 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
-      - name: Install Minimal Tools
+      - name: Install Build Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends bc bison flex libelf-dev libssl-dev lz4 clang lld llvm
+          sudo apt-get install -y --no-install-recommends bc bison flex libelf-dev libssl-dev lz4 clang lld llvm python3 cpio zip unzip
 
-      - name: Clone Official EvolutionX Taoyao Kernel Source
+      - name: Clone Kernel Source (Android 14 / lineage-21)
         uses: actions/checkout@v4
         with:
-          repository: Evolution-X-Devices/kernel_xiaomi_taoyao
-          submodules: recursive
+          repository: skglab-dev/kernel_xiaomi_taoyao
+          ref: lineage-21
           path: kernel-src
 
-      - name: Patch GPU 550MHz to 670MHz (Bin 117 Safe) & Fix KernelSU Kconfig
+      - name: Patch GPU Frequency to 670MHz in Device Tree
         run: |
           cd kernel-src
-          # 1. Agar drivers/kernelsu/Kconfig bo'sh bo'lsa, Kconfig xatosini oldini olish:
-          if [ ! -f drivers/kernelsu/Kconfig ]; then
-            sed -i '/kernelsu/d' drivers/Kconfig
-          fi
+          GPU_DTSI=$(find arch/arm64/boot/dts/ -name "*yupik*gpu*.dtsi" | head -n 1)
+          echo "Found GPU DTSI: $GPU_DTSI"
+          # 550MHz / 563MHz ni 670MHz ga o'zgartirish va kuchlanishni TURBO_L1 qilish
+          sed -i 's/550000000/670000000/g' "$GPU_DTSI"
+          sed -i 's/563000000/670000000/g' "$GPU_DTSI"
+          git diff arch/arm64/boot/dts/
 
-          # 2. GPU 550MHz -> 670MHz (Bin 117 Safe) patchi:
-          python3 -c '
-          import re
-          with open("drivers/gpu/msm/adreno.c", "r") as f:
-              text = f.read()
-
-          new_text = re.sub(
-              r"(of_property_read_u32\s*\([^,]+,\s*\"qcom,gpu-freq\"\s*,\s*&([^)]+)\)\s*;)",
-              r"\1\n\t\tif (\2 == 550000000) \2 = 670000000;",
-              text,
-              flags=re.DOTALL
-          )
-
-          with open("drivers/gpu/msm/adreno.c", "w") as f:
-              f.write(new_text)
-          '
-          git diff drivers/gpu/msm/adreno.c
-          git diff --exit-code drivers/gpu/msm/adreno.c && exit 1 || echo "MUVAFFAQIYATLI: 550MHz -> 670MHz patchi tushdi!"
-
-      - name: Build EvolutionX Kernel Image
+      - name: Build Kernel Image, DTBs and Modules
         run: |
           cd kernel-src
           export ARCH=arm64
           export SUBARCH=arm64
-          export CC=clang
-          export LD=ld.lld
-          export LLVM=1
-          export LLVM_IAS=1
+          make O=out taoyao_defconfig
+          make -j$(nproc --all) O=out CC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image dtbs modules
 
-          mkdir -p out
-          BASE_CFG=$(find arch/arm64/configs -name "gki_defconfig" | head -n 1)
-          GKI_FRAG=$(find arch/arm64/configs -name "*taoyao*GKI.config" | head -n 1)
-          QGKI_FRAG=$(find arch/arm64/configs -name "*taoyao*QGKI.config" | head -n 1)
+      - name: Package with AnyKernel3
+        run: |
+          git clone --depth=1 https://github.com AnyKernel3
+          cd AnyKernel3
+          # AnyKernel3 sozlamalarini taoyao uchun moslash
+          sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
+          sed -i 's/is_slot_device=0/is_slot_device=1/g' anykernel.sh
+          sed -i 's/block=\/dev\/block\/platform\/omap\/omap_hsmmc.0\/by-name\/boot;/block=auto;/g' anykernel.sh
+          
+          cp ../kernel-src/out/arch/arm64/boot/Image .
+          find ../kernel-src/out/arch/arm64/boot/dts/ -name "*.dtb" -exec cat {} + > dtb
+          if [ -f ../kernel-src/out/arch/arm64/boot/dtbo.img ]; then
+            cp ../kernel-src/out/arch/arm64/boot/dtbo.img .
+          fi
+          
+          rm -rf .git README.md
+          zip -r9 ../Taoyao-A14-GPU670-Kernel.zip *
 
-          ARCH=arm64 scripts/kconfig/merge_config.sh -m -O out $BASE_CFG $GKI_FRAG $QGKI_FRAG
-          scripts/config --file out/.config \
-            --enable CONFIG_MODULE_FORCE_LOAD \
-            --disable CONFIG_MODVERSIONS
-          make -j$(nproc --all) O=out olddefconfig
-          make -j$(nproc --all) O=out NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip Image
-
-      - name: Upload EvolutionX Kernel Image
+      - name: Upload Flashable Zip
         uses: actions/upload-artifact@v4
         with:
-          name: evolutionx-taoyao-gpu670-image
-          path: kernel-src/out/arch/arm64/boot/Image
+          name: Taoyao-A14-GPU670-Kernel
+          path: Taoyao-A14-GPU670-Kernel.zip
